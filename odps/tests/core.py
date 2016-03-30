@@ -76,11 +76,15 @@ def get_config():
         endpoint = config.get("odps", "endpoint")
         try:
             tunnel_endpoint = config.get("tunnel", "endpoint")
+            if tunnel_endpoint == '':
+                tunnel_endpoint = None
         except (ConfigParser.NoSectionError, ConfigParser.NoOptionError):
             tunnel_endpoint = None
 
         try:
             datahub_endpoint = config.get("datahub", "endpoint")
+            if datahub_endpoint == '':
+                datahub_endpoint = None
         except (ConfigParser.NoSectionError, ConfigParser.NoOptionError):
             datahub_endpoint = None
 

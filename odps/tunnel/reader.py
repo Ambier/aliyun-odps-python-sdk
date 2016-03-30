@@ -134,7 +134,7 @@ class TunnelReader(AbstractRecordReader):
                 self._crc.update_long(val)
                 record[i] = utils.to_datetime(val)
             elif data_type == types.decimal:
-                val = self._reader.read_string()
+                val = utils.to_text(self._reader.read_string())
                 self._crc.update(val)
                 record[i] = val
             elif isinstance(data_type, types.Array):

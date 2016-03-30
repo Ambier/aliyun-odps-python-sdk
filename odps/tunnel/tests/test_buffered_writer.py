@@ -32,27 +32,28 @@ from odps.tests.core import TestBase, to_str
 from odps.compat import unittest, OrderedDict
 from odps.models import Schema
 from odps import types
+from odps.errors import ODPSError
 
 
 class Test(TestBase):
     def _upload_data(self, test_table, records, compress=False, **kw):
         upload_ss = self.tunnel.create_upload_session(test_table, **kw)
-        writer = upload_ss.open_record_writer(0, compress=compress)
+        writer = upload_ss.open_bufferred_writer(compress=compress)
         for r in records:
             record = upload_ss.new_record()
             for i, it in enumerate(r):
                 record[i] = it
             writer.write(record)
         writer.close()
-        upload_ss.commit([0, ])
+        upload_ss.commit()
 
     def _upload_data_as_tuples(self, test_table, records, compress=False, **kw):
         upload_ss = self.tunnel.create_upload_session(test_table, **kw)
-        writer = upload_ss.open_record_writer(0, compress=compress)
+        writer = upload_ss.open_bufferred_writer(compress=compress)
         for r in records:
             writer.write(r)
         writer.close()
-        upload_ss.commit([0, ])
+        upload_ss.commit()
 
     def _download_data(self, test_table, compress=False, columns=None, **kw):
         download_ss = self.tunnel.create_download_session(test_table, **kw)
@@ -119,7 +120,7 @@ class Test(TestBase):
         with self.assertRaises(TypeError):
             r = [None, None, None, None, "fake_type_boolean", None, None, None]
             self._upload_data_as_tuples(test_table_name, [r])
-        with self.assertRaises(IOError):
+        with self.assertRaises(ODPSError):
             r = [None, None, None, None, None, "not_a_decimal", None, None]
             self._upload_data_as_tuples(test_table_name, [r])
         with self.assertRaises(TypeError):

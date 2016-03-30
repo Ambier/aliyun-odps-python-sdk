@@ -273,15 +273,8 @@ class OdpsSchema(Schema):
         return self._partitions[index]
 
     def is_partition(self, name):
-        if isinstance(name, Partition):
-            return True
-        if isinstance(name, Column):
-            name = name.name
-        try:
-            self.get_partition(name)
-            return True
-        except ValueError:
-            return False
+        index = self._partition_schema._name_indexes.get(name)
+        return False if index is None else True
 
     def get_type(self, name):
         if name in self._name_indexes:

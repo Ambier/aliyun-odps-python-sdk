@@ -19,7 +19,6 @@
 
 import zlib
 
-from enum import Enum
 import six
 from six.moves import queue as Queue
 from google.protobuf.internal.encoder import _EncodeSignedVarint, _EncodeVarint
@@ -30,24 +29,7 @@ from google.protobuf.internal import wire_format
 
 from odps import errors
 from odps import compat
-
-
-class CompressOption(object):
-
-    class CompressAlgorithm(Enum):
-        ODPS_RAW = 'RAW'
-        ODPS_ZLIB = 'ZLIB'
-        ODPS_SNAPPY = 'SNAPPY'
-
-    def __init__(self, compress_algo=CompressAlgorithm.ODPS_ZLIB,
-                 level=None, strategy=None):
-        if isinstance(compress_algo, CompressOption.CompressAlgorithm):
-            self.algorithm = compress_algo
-        else:
-            self.algorithm = \
-                CompressOption.CompressAlgorithm(compress_algo.upper())
-        self.level = level or 1
-        self.strategy = strategy or 0
+from odps.tunnel.compressopt import CompressOption
 
 
 class ProtobufWriter(object):

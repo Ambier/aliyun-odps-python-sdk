@@ -26,6 +26,8 @@ from ..models import Schema, Record
 from .errors import TunnelError
 from .io import CompressOption
 from .writer import TunnelWriter
+from .bufferredwriter import BufferedWriter
+from .writerpbfast import ProtoStreamWriter
 
 
 class UploadSession(serializers.JSONSerializableModel):
@@ -99,7 +101,38 @@ class UploadSession(serializers.JSONSerializableModel):
     def new_record(self, values=None):
         return Record(self.schema.columns, values=values)
 
-    def open_record_writer(self, block_id, compress=False):
+    def open_bufferred_writer(self, compress=False, buffer_size=1024*1024*10):
+        """
+        Bufferred writer manages blocks automatically
+        """
+        compress_option = self._compress_option or CompressOption()
+        params = {}
+        headers = {'Transfer-Encoding': 'chunked',
+                   'Content-Type': 'application/octet-stream',
+                   'x-odps-tunnel-version': 4}
+        if compress:
+            if compress_option.algorithm == \
+                    CompressOption.CompressAlgorithm.ODPS_ZLIB:
+                headers['Content-Encoding'] = 'deflate'
+            elif compress_option.algorithm == \
+                    CompressOption.CompressAlgorithm.ODPS_SNAPPY:
+                headers['Content-Encoding'] = 'x-snappy-framed'
+            elif compress_option.algorithm != \
+                    CompressOption.CompressAlgorithm.ODPS_RAW:
+                raise TunnelError('invalid compression option')
+        params['uploadid'] = self.id
+        if self._partition_spec is not None and len(self._partition_spec) > 0:
+            params['partition'] = self._partition_spec
+        url = self._table.resource()
+
+        def upload_block(block_id, data):
+            params['blockid'] = block_id
+            self._client.put(url, data=data, params=params, headers=headers)
+
+        return BufferedWriter(self.schema, upload_block, buffer_size=buffer_size,
+                              compress_option=compress_option if compress else None)
+
+    def open_record_writer(self, block_id, compress=False, optimize_pb=True):
         """
         BlockId是由用户选取的0~19999之间的数值，标识本次上传数据块
         """
@@ -128,17 +161,28 @@ class UploadSession(serializers.JSONSerializableModel):
         chunk_upload = lambda data: self._client.put(
             url, data=data, params=params, headers=headers)
         option = compress_option if compress else None
-        writer = TunnelWriter(self.schema, chunk_upload, compress_option=option)
 
+        if optimize_pb:
+            try:
+                import odps.tunnel.pbfast
+                writer = ProtoStreamWriter(self.schema, chunk_upload, compress_option=option)
+            except ImportError:
+                print 'fallback to TunnelWriter'
+                writer = TunnelWriter(self.schema, chunk_upload, compress_option=option)
+        else:
+            writer = TunnelWriter(self.schema, chunk_upload, compress_option=option)
         return writer
     
     def get_block_list(self):
         self.reload()
         return self.blocks
-    
-    def commit(self, blocks):
+
+    def commit(self, blocks=None):
+        # do not validate!
         if blocks is None:
-            raise ValueError('Invalid parameter: blocks.')
+            self._complete_upload()
+            return
+
         if isinstance(blocks, six.integer_types):
             blocks = [blocks, ]
         

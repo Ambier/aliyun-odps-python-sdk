@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
 
 import sys
 import os
@@ -48,6 +48,10 @@ if os.path.exists('README.rst'):
     with open('README.rst') as f:
         long_description = f.read()
 
+ext_dir = os.path.join('odps', 'extensions')
+pbfast = Extension('odps.tunnel.pbfast', [os.path.join(ext_dir, 'pbfast/wrapper.cc'),
+                              os.path.join(ext_dir, 'pbfast/proto_writer.cc')], libraries=['protobuf'])
+
 setup(name='pyodps',
       version='0.3.4',
       description='ODPS Python SDK',
@@ -62,4 +66,5 @@ setup(name='pyodps',
       include_package_data=True,
       scripts=['scripts/pyou',],
       install_requires=requirements,
+      ext_modules=[pbfast],
       )
